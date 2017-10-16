@@ -1,0 +1,150 @@
+---
+title: "PiMaa - Tackling air pollution using open data"
+output:
+  html_document: default
+  html_notebook: default
+---
+<!--
+
+#########################################################################################
+# License: Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)  #
+# This license entitles you to Share (copy adn redistribute the material in any medium  #
+# or format) and Adapt (remix, transform and build upon the material) the code listed   #
+# in this file. The code in this page can be used for non-commercial purposes only.     #
+# For a full copy of the license, please refer to                                       #
+# https://creativecommons.org/licenses/by-nc/4.0/legalcode                              #
+#########################################################################################
+
+# Author: Outbox, Research Division
+# Version: 0.1
+# Date of version release:13 Oct 2017
+
+--> 
+PiMaa is an Internet of things project that seeks to build low cost environmental monitoring stations for deployment in urban areas like Kampala so as to improve the quantity of data available on air quality through open standards. PiMaa is an initiative under Outbox, supported by the Open Knowledge International through the Africa Open Data Collaboration Fund.
+
+As part of this project, we have developed hardware modules capable of capturing air quality data, specifically **_PM_2.5_** data. For further information on what PM2.5 data is about, refer to [this page](https://blissair.com/what-is-pm-2-5.htm]) that helps explain what it is about, its effects to human health and how you can try to minimise your exposure.
+
+On this page, we try to explore our data and draw out some interesting trends.
+
+## Preliminaries
+
+* The code and data used in this exploratory exercise is freely available on our Github repository.
+* As the data and code is constantly being updated, it is likely that the results observed the previous day(s) may differ from the current date. Where changes to the code have been made, the commit history can be referred to to identify where changes have been made. We do not intend on making any direct changes to the data but shall continue to append new results from our devices to the existing data set.
+* The environment has been set up by loading the requisite libraries and datasets:
+```{r setup_data, message=FALSE, warning=FALSE, echo=FALSE}
+# source('setup.R')
+# List of project libraries
+libraries <- c('dplyr', 'ggplot2', 'lubridate', 'tidyr', 'readr', 'ggmap', 'stringr')
+
+# Attempt to load libraries into environment
+loaded_libraries <- sapply(libraries, require, character.only = TRUE) 
+
+# Attempt to install and load only missing libraries. If it fails, do not proceed
+if(!all(loaded_libraries)) {
+  install.packages(libraries[!loaded_libraries])
+  sapply(libraries[!loaded_libraries], require, character.only = TRUE)
+}
+
+loaded_libraries <- libraries %in% (.packages())
+
+if(!all(loaded_libraries)) {
+  stop(paste('Failed to load the following packages: ', libraries[!loaded_libraries]))
+} else {
+  print(paste("Successfully installed package:", libraries[loaded_libraries]))
+}
+
+# Load data sets
+pimaa <- read_csv(file = "../data/pimaa.csv") # PM2.5 data readings
+nodes <- read_csv(file = "../data/nodes.csv") # Node locations
+  
+if(all(c('pimaa', 'nodes') %in% ls())) {
+  print("Successfully loaded datasets.")
+} else {
+   stop("Cannot load datasets.")
+}
+
+# Clean up environment
+rm(list = c('libraries', 'loaded_libraries'))
+```
+
+## 1. Location of the nodes
+From the dataset, we have `r length(unique(pimaa$node_id))` node(s) across the city. These node(s) are mapped below:
+
+```{r city_mapping, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+map <- ggmap(
+  get_map(
+    location = 'Kampala', 
+    zoom = 14,
+    maptype = 'roadmap',
+    source = 'google')
+  )
+
+# Plot node locations onto map
+map + 
+  geom_point(
+    data = nodes,
+    aes(x = Longitude, y = Latitude), 
+    color = 'red', 
+    size = 3, 
+    alpha = 0.5) +
+  geom_text(
+    data = nodes,
+    aes(x = Longitude, y = Latitude, label=Node),
+    vjust = 0,
+    hjust = 0,
+    nudge_x = 0.001,
+    size = 2,
+    fontface = 'bold') + 
+  xlab('Longitude') + 
+  ylab('Latitude')
+```
+
+## 2. Exploring the data
+The dataset used for this exploratory analysis is sourced from our devices. As the dataset is being constantly updated, the analysis below is from our dataset as at **`r file.info(file.path('..', 'data', 'pimaa.csv' ))$mtime %>% format(format = "%d %b %Y")`**.
+
+### 2.1 Cleaning the data set
+The dataset has 4 variables - the node's identification number, the unique code of the sensor, the respective value of the data being captured by the sensor, and the timestamp of the value being captured.
+```{r}
+names(pimaa)
+```
+The sensor code captures in its identifier captures the pollutant being captured, for example, **`r pimaa$sensor_code[1]`** is capturing the element **`r (pimaa$sensor_code[1] %>% str_split(pattern = '_'))[[1]][2]`**.
+
+We shall:
+
+* Add a variable "pollutant" to the dataset so that its easier to view each pollutant from the sensor information.
+
+* Add a date variable from the timestamp variable so that information can easily be views and analysed by date
+
+* Convert the timestamp variable into lubridate format so that its easier to use in analysis.
+
+* Re-order the variables in the dataset so that its easier to view.
+
+```{r update_data_set, echo=FALSE}
+pimaa <- pimaa %>% 
+  mutate(
+    pollutant = str_split_fixed(pimaa$sensor_code, '_', Inf)[,2],
+    date=as_date(timestamp),
+    timestamp=ymd_hms(timestamp)
+  ) %>% 
+  select(
+    node_id,
+    pollutant,
+    value,
+    date, 
+    timestamp,
+    sensor_code
+  )
+
+# There are empty values in the 'pollutant' variable as the 'noise' sensor doesn't 
+# follow the same naming convention as the other variables. These are identified and 
+# set as 'noise' after confirming that all blank results are related to the noise
+# sensor.
+
+blank_noise_indexes <- which(pimaa$pollutant == "")
+
+if(all(pimaa[blank_noise_indexes, 'sensor_code'] == 'noise')) {
+  pimaa[blank_noise_indexes, 'pollutant'] <- 'noise'
+}
+
+head(pimaa, 10)
+```
