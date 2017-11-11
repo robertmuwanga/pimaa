@@ -1,8 +1,9 @@
 ---
 title: "PiMaa - Tackling air pollution using open data"
 output:
-  html_document: default
   html_notebook: default
+  html_document: default
+  pdf_document: default
 ---
 <!--
 
@@ -34,7 +35,7 @@ On this page, we try to explore our data and draw out some interesting trends.
 ```{r setup_data, message=FALSE, warning=FALSE, echo=FALSE}
 # source('setup.R')
 # List of project libraries
-libraries <- c('dplyr', 'ggplot2', 'lubridate', 'tidyr', 'readr', 'ggmap', 'stringr')
+libraries <- c('dplyr', 'ggplot2', 'lubridate', 'tidyr', 'readr', 'ggmap', 'stringr', 'xts')
 
 # Attempt to load libraries into environment
 loaded_libraries <- sapply(libraries, require, character.only = TRUE) 
@@ -111,28 +112,22 @@ The sensor code captures in its identifier captures the pollutant being captured
 
 We shall:
 
+* Convert the data to an 'xts' object so that its easier to generate time series.
+
 * Add a variable "pollutant" to the dataset so that its easier to view each pollutant from the sensor information.
-
-* Add a date variable from the timestamp variable so that information can easily be views and analysed by date
-
-* Convert the timestamp variable into lubridate format so that its easier to use in analysis.
 
 * Re-order the variables in the dataset so that its easier to view.
 
 ```{r update_data_set, echo=FALSE}
 pimaa <- pimaa %>% 
   mutate(
-    pollutant = str_split_fixed(pimaa$sensor_code, '_', Inf)[,2],
-    date=as_date(timestamp),
-    timestamp=ymd_hms(timestamp)
-  ) %>% 
+    pollutant = str_split_fixed(pimaa$sensor_code, '_', Inf)[,2]
+  ) %>%
   select(
     node_id,
     pollutant,
     value,
-    date, 
-    timestamp,
-    sensor_code
+    timestamp
   )
 
 # There are empty values in the 'pollutant' variable as the 'noise' sensor doesn't 
@@ -141,10 +136,13 @@ pimaa <- pimaa %>%
 # sensor.
 
 blank_noise_indexes <- which(pimaa$pollutant == "")
+pimaa[blank_noise_indexes, 'pollutant'] <- 'noise'
 
-if(all(pimaa[blank_noise_indexes, 'sensor_code'] == 'noise')) {
-  pimaa[blank_noise_indexes, 'pollutant'] <- 'noise'
-}
+# Convert the pimaa dataset into an xts object for better support with time series
+pimaa <- xts(
+    x = select(pimaa, 1:3), 
+    order.by = ymd_hms(pimaa$timestamp, tz = 'Africa/Kampala'), 
+    tzone = 'Africa/Kampala')
 
 head(pimaa, 10)
 ```
