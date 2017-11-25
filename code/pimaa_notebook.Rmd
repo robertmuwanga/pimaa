@@ -140,9 +140,23 @@ pimaa[blank_noise_indexes, 'pollutant'] <- 'noise'
 
 # Convert the pimaa dataset into an xts object for better support with time series
 pimaa <- xts(
-    x = select(pimaa, 1:3), 
-    order.by = ymd_hms(pimaa$timestamp, tz = 'Africa/Kampala'), 
-    tzone = 'Africa/Kampala')
+    x = subset(pimaa, select = -timestamp), 
+    order.by = dmy_hm(pimaa$timestamp),
+    tzone = Sys.getenv('UG'))
 
 head(pimaa, 10)
 ```
+```{r element_plots, echo = FALSE}
+lapply(X = unique(pimaa$pollutant), FUN = function(x) {
+  dataset <- subset(pimaa, pollutant == x) # Subset by pollutant
+  dataset <- period.apply( # Get the mean of the pollutant by day
+    x = dataset[, 3],
+    INDEX = endpoints(x = dataset, on = 'days'),
+    mean)
+
+  autoplot(dataset,
+    plot = 'point'
+  ) + ggtitle(x)
+})
+```
+
