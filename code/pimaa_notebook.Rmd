@@ -35,7 +35,7 @@ On this page, we try to explore our data and draw out some interesting trends.
 ```{r setup_data, message=FALSE, warning=FALSE, echo=FALSE}
 # source('setup.R')
 # List of project libraries
-libraries <- c('dplyr', 'ggplot2', 'lubridate', 'tidyr', 'readr', 'ggmap', 'stringr', 'xts')
+libraries <- c('dplyr', 'ggplot2', 'lubridate', 'tidyr', 'readr', 'ggmap', 'stringr', 'xts', 'scales')
 
 # Attempt to load libraries into environment
 loaded_libraries <- sapply(libraries, require, character.only = TRUE) 
@@ -147,6 +147,21 @@ pimaa <- xts(
 head(pimaa, 10)
 ```
 ```{r element_plots, echo = FALSE}
+units <- list(
+  'NH3' = 'ppm',
+  'CO' = 'ppm',
+  'NO2' = 'ppm',
+  'C3H8' = 'ppm',
+  'C4H10' = 'ppm',
+  'CH4' = 'ppm',
+  'H2' = 'ppm',
+  'C2H5OH' = 'ppm',
+  'PM1' = 'ppm',
+  'temperature' = 'Degrees Celsius',
+  'humidity' = '%',
+  'noise' = 'decibels'
+)
+
 lapply(X = unique(pimaa$pollutant), FUN = function(x) {
   dataset <- subset(pimaa, pollutant == x) # Subset by pollutant
   dataset <- period.apply( # Get the mean of the pollutant by day
@@ -155,8 +170,10 @@ lapply(X = unique(pimaa$pollutant), FUN = function(x) {
     mean)
 
   autoplot(dataset,
-    plot = 'point'
-  ) + ggtitle(x)
-})
+    plot = 'point') + 
+    ggtitle(paste0('Daily averages of ', x)) + 
+    xlab('Month') + 
+    ylab(paste0('Quantity (', units[x], ')'))
+  })
 ```
 
