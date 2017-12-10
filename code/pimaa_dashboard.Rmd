@@ -1,0 +1,116 @@
+---
+title: "pimaa dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+runtime: shiny
+---
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE}
+library(flexdashboard)
+library(shiny)
+
+# Initial loading of support packages and datasets
+source("setup.R")
+
+# Units of measure
+pollutant_units <- list(
+  'NH3' = 'ppm',
+  'CO' = 'ppm',
+  'NO2' = 'ppm',
+  'C3H8' = 'ppm',
+  'C4H10' = 'ppm',
+  'CH4' = 'ppm',
+  'H2' = 'ppm',
+  'C2H5OH' = 'ppm',
+  'PM1' = 'ppm',
+  'temperature' = 'Degrees Celsius',
+  'humidity' = '%',
+  'noise' = 'decibels'
+)
+
+# The graphing function
+graph <- function(dataset = dataset, period = period, pollutant = pollutant) {
+  ggplot(
+    data = period.apply(
+      x = dataset, 
+      INDEX = endpoints(dataset, on = period),
+      FUN = mean),
+    aes(
+      x = Index, 
+      y = value)) + 
+    geom_point() + 
+    geom_line() +
+    xlab('Time') + 
+    ylab(pollutant_units[[pollutant]])
+}
+
+```
+
+Column {.sidebar}
+-----------------------------------------------------------------------
+
+Set the filtering options below to graph out the respective pollutant over the specified timeline.
+
+```{r}
+selectInput(
+  inputId = 'pollutant',
+  label = 'Select pollutant',
+  choices = unique(pimaa$pollutant),
+  selected = unique(pimaa$pollutant)[1])
+
+dateRangeInput(
+  inputId = 'dateRange',
+  label = 'Select date range',
+  min = as.Date(min(index(pimaa))),
+  max = as.Date(max(index(pimaa))),
+  start = as.Date(min(index(pimaa))),
+  end = as.Date(max(index(pimaa))),
+  separator = '/'
+)
+
+actionButton(
+  inputId = 'action',
+  label = 'Draw Graph'
+)
+```
+
+Column {.tabset}
+-----------------------------------------------------------------------
+```{r}
+# Let's develop the dataset after the action button is clicked.
+dataset <- eventReactive(
+  input$action,
+  {
+    pimaa[(pimaa[paste(input$dateRange[1], input$dateRange[2], sep = '/')])$pollutant == input$pollutant][,'value']
+  }
+)
+
+pollutant <- eventReactive(input$action, { input$pollutant })
+```
+
+### By days
+
+```{r}
+renderPlot({
+  graph(dataset = dataset(), period = 'days', pollutant = pollutant())
+})
+
+```
+
+### By weeks
+
+```{r}
+renderPlot({
+  graph(dataset = dataset(), period = 'weeks', pollutant = pollutant())
+})
+```
+
+### By months
+
+```{r}
+renderPlot({
+  graph(dataset = dataset(), period = 'months', pollutant = pollutant())
+})
+```

@@ -12,8 +12,15 @@
 # Date of version release:13 Oct 2017
 # Purpose: To set defaults for the R environment
 
-# List of project libraries
-libraries <- c('dplyr', 'ggplot2', 'lubridate', 'tidyr', 'readr', 'ggmap', 'stringr')
+libraries <- c('dplyr', 
+               'ggplot2', 
+               'lubridate', 
+               'tidyr', 
+               'readr', 
+               'ggmap', 
+               'stringr', 
+               'xts', 
+               'scales')
 
 # Attempt to load libraries into environment
 loaded_libraries <- sapply(libraries, require, character.only = TRUE) 
@@ -35,12 +42,40 @@ if(!all(loaded_libraries)) {
 # Load data sets
 pimaa <- read_csv(file = "../data/pimaa.csv") # PM2.5 data readings
 nodes <- read_csv(file = "../data/nodes.csv") # Node locations
-  
+
 if(all(c('pimaa', 'nodes') %in% ls())) {
   print("Successfully loaded datasets.")
 } else {
-   stop("Cannot load datasets.")
+  stop("Cannot load datasets.")
 }
 
 # Clean up environment
 rm(list = c('libraries', 'loaded_libraries'))
+
+# Set up the pimaa dataset
+pimaa <- pimaa %>% 
+  mutate(
+    pollutant = str_split_fixed(pimaa$sensor_code, '_', Inf)[,2]
+  ) %>%
+  select(
+    node_id,
+    pollutant,
+    value,
+    timestamp
+  )
+
+# Clean up the pimaa dataset with the noise attribute.
+blank_noise_indexes <- which(pimaa$pollutant == "")
+pimaa[blank_noise_indexes, 'pollutant'] <- 'noise'
+
+# Convert the pimaa dataset into an xts object for better support with time series
+pimaa <- xts(
+  x = subset(pimaa, select = -timestamp), 
+  order.by = dmy_hm(pimaa$timestamp),
+  tzone = Sys.getenv('UG'))
+
+# Collection of unique pollutants
+pollutants <- unique(pimaa$pollutant)
+
+# Clean up unnecessary objects from memory
+rm('blank_noise_indexes')
