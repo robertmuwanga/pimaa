@@ -50,6 +50,8 @@ graph <- function(dataset = dataset, period = period, pollutant = pollutant) {
 
 Column {.sidebar}
 -----------------------------------------------------------------------
+The pimaa project serves to collect air quality data in the city of Kampala. This dashboard helps to 
+try and display moving averages on a daily, weekly and monthly basis on data for each pollutant being monitored.
 
 Set the filtering options below to graph out the respective pollutant over the specified timeline.
 
@@ -90,7 +92,7 @@ dataset <- eventReactive(
 pollutant <- eventReactive(input$action, { input$pollutant })
 ```
 
-### By days
+### Daily Average
 
 ```{r}
 renderPlot({
@@ -99,7 +101,7 @@ renderPlot({
 
 ```
 
-### By weeks
+### Weekly Average
 
 ```{r}
 renderPlot({
@@ -107,7 +109,7 @@ renderPlot({
 })
 ```
 
-### By months
+### Monthly Average
 
 ```{r}
 renderPlot({
