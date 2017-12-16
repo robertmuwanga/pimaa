@@ -30,6 +30,11 @@ pollutant_units <- list(
   'noise' = 'decibels'
 )
 
+# WHO recommendations on pollutant limits
+WHO_recommendations <- list(
+  
+)
+
 # The graphing function
 graph <- function(dataset = dataset, period = period, pollutant = pollutant) {
   ggplot(
