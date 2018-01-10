@@ -27,7 +27,7 @@ loaded_libraries <- sapply(libraries, require, character.only = TRUE)
 
 # Attempt to install and load only missing libraries. If it fails, do not proceed
 if(!all(loaded_libraries)) {
-  install.packages(libraries[!loaded_libraries])
+  install.packages(libraries[!loaded_libraries], dependencies = TRUE)
   sapply(libraries[!loaded_libraries], require, character.only = TRUE)
 }
 
